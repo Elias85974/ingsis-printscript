@@ -18,80 +18,133 @@ public class Lexer {
 
         // Token attributes:
         String identifier;
-        String value;
+        String currentWord = "";
         int row = 1;
         int column = 1;
 
         List<Token> tokens = new ArrayList<>();
 
-        String currentLine;
-
-        String currentWord = "";
-        boolean wordIsString = false;
-        char stringInitializer;
+        Character stringInitializer = null;
 
         for (int charIndex = 0; charIndex < charArrayLength; charIndex++) {
             char currentChar = charArray[charIndex];
 
-            if (currentChar == ' ') {
-                typeWord(wordIsString, currentWord);
+            // String lol = "sa"
+            // Verifica si el caracter actual es el inicio de un string y busca todos el resto (falta number)
+            if (currentChar == '"' || currentChar == '\'') {
+                identifier = "literalValue";
+                stringInitializer = currentChar;
+                currentWord += currentChar;
+                for (int charIndexS = charIndex + 1; charIndexS < charArrayLength; charIndexS++) {
+                    char currentCharS = charArray[charIndexS];
+                    currentWord += currentCharS;
+
+                    if (currentCharS == stringInitializer) {
+                        tokens.add(new Token(identifier, currentWord, row, column)); // toDo resolver tema del column y row
+                        currentWord = "";
+                        charIndex = charIndexS;
+                        break;
+                    }
+                }
             }
 
-            currentWord += currentChar;
+            // verifica si el caracter actual es un numero
+            else if (Character.isDigit(currentChar) && currentWord.isEmpty()) { //si las variables pueden tener numeros basta con chequear que este vacio el currentWord
+                identifier = "literalValue";
+                currentWord += currentChar;
 
-//            if (currentWord.equals("\"") || currentWord.equals("'")){
+                for (int charIndexN = charIndex + 1; charIndexN < charArrayLength; charIndexN++) {
+                    char currentCharN = charArray[charIndexN];
+
+                    if (Character.isDigit(currentCharN) || currentCharN == '.') {
+                        currentWord += currentCharN;
+                    } else {
+                        tokens.add(new Token(identifier, currentWord, row, column)); // toDo resolver tema del column y row
+                        currentWord = "";
+                        charIndex = charIndexN - 1;
+                        break;
+                    }
+                }
+            }
+
+            // Verifica si el caracter es un keyWord / nombre de la variable
+//            else if (currentChar == ' ') {
+//                switch (currentWord) {
+//                    case "let" -> identifier = "variableDeclaration";
+//                    case ";" -> identifier = "endLine";
+//                    case ":" -> identifier = "dataTypeAssignation";
+//                    case "=" -> identifier = "valueAssignation";
+//                    case "string", "number" -> identifier = "symbol";
+//                    default -> identifier = "nameVariable";
+//                }
 //
-//            }
+//                // si hay mas de 1 espcacio y esta vacio el CurrentWord no agrega nadaaa
+//                if (!currentWord.isEmpty()) {
+//                    tokens.add(new Token(identifier, currentWord, row, column));
+//                    currentWord = "";
+//                }
+        //    }
+            else if (currentWord.equals("let")) {
+                tokens.add(new Token("variableDeclaration", currentWord, row, column));
+                currentWord = "";
+            } // verificar si es un + - * /
+            else if ((currentChar == '+' || currentChar == '-' || currentChar == '*' || currentChar == '/') ) {
+                if (!currentWord.isEmpty()) {
+                    identifier = "nameVariable";
+                    tokens.add(new Token(identifier, currentWord, row, column));
+                    currentWord = "";
+                }
 
+                identifier = "operator";
+                currentWord += currentChar;
+                tokens.add(new Token(identifier, currentWord, row, column));
+                currentWord = "";
+            } else if (currentChar == ':') {
+                tokens.add(new Token("nameVariable", currentWord, row, column));
+                tokens.add(new Token("dataTypeAssignation", ":", row, column));
+                currentWord = "";
+            }else if (currentChar == '=') {
+                tokens.add(new Token("symbol", currentWord, row, column));
+                tokens.add(new Token("valueAssignation", "=", row, column));
+                currentWord = "";
+            }  else if (currentChar == ';') {
+                if (!currentWord.isEmpty()) {
+                    identifier = "nameVariable";
+                    tokens.add(new Token(identifier, currentWord, row, column));
+                }
+                tokens.add(new Token("endLine", ";", row, column));
+                currentWord = "";
+                row++;
+            } else if (currentChar == '\n') {
+                row++;
+                column++;
+            } else if (currentChar == '\t') {
+                column += 4;
+            } else if (currentChar == ' ') {
+                if (currentWord.isEmpty()) column++;
+                //tokens.add(new Token(identifier, currentWord, row, column));
+            }
 
-
-
+            // agrega el caracter actual a la palabra actual si no es nada (seguir rellenando)
+            else {
+                currentWord += currentChar;
+            }
+        }
+        // Verifica si la palabra actual no esta vacia y la agrega a la lista de tokens SI no se cerro un string ocn comillas
+        if (!currentWord.isEmpty()) {
+            tokens.add(new Token("literalValue", currentWord, row, column));
         }
 
-//        for (String line: input.split(";")) {
-//            currentLine = new String(line);
-//
-//            while (!currentLine.isEmpty()) {
-//                char currentChar = currentLine.charAt(0);
-//
-//                if (currentChar == '\n') {
-//                    row++;
-//                    column = 1; // no tenemos anidacion todavia
-//                }
-//
-//                if (currentChar == '"' || currentChar == '\'' ) {
-//                    identifier = "String";
-//                    try {
-//                        column = currentLine.indexOf("", 1);
-//                    }
-//                    catch(Exception e) {
-//                        tokens.add(new Token(identifier, currentLine, row, column));
-//                        break;
-//                    }
-//                }
-//                else {
-//                    identifier = "";
-//                    column = currentLine.lastIndexOf(" ", 1);
-//                }
-//                value = currentLine.substring(0, column);
-//                tokens.add(new Token(identifier, value, row, column));
-//                currentLine = currentLine.substring();
-//            }
-//        }
+        return tokens;
     }
 
-    private static String typeWord(boolean wordIsString, String currentWord) {
-        String identifier = "NaN";
-        if (!wordIsString){
-            identifier = switch (currentWord) {
-                case "let" -> "variableDeclaration";
-                case ";" -> "endLine";
-                case ":" -> "dataTypeAssignation";
-                case "=" -> "valueAssignation";
-                case "string", "number" -> "symbol";
-                default -> identifier;
-            };
+
+    public static void main(String[] args) {
+        Lexer lexer = new Lexer();
+        List<Token> tokens = lexer.lex("let a: number = 12; let b: number = 4; let c: number = a / b;");
+        for (Token token : tokens) {
+            System.out.println(token);
         }
-        return identifier;
+
     }
 }
